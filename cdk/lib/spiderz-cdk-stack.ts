@@ -1,12 +1,15 @@
 // import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 import { Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
+import {
+  Effect, PolicyStatement, Role, ServicePrincipal,
+} from 'aws-cdk-lib/aws-iam';
 
 import {
   CfnOutput, Duration, RemovalPolicy, Stack, StackProps
@@ -16,6 +19,20 @@ import path = require('path');
 export class SpiderzCdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    const connectionsTable = new Table(this, 'WebsocketConnections', {
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+      tableName: 'WebsocketConnections',
+      partitionKey: {
+        name: 'roomId',
+        type: AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'connectionId',
+        type: AttributeType.STRING,
+      },
+    });
 
     const connectionLambda = new NodejsFunction(this, 'ConnectionHandlerLambda', {
       entry: "../src/lambda/connection-handler.ts",
@@ -27,8 +44,11 @@ export class SpiderzCdkStack extends Stack {
       functionName: "ConnectionHandler",
       description: "Handles the onConnect & onDisconnect events emitted by the WebSocket API Gateway",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
-      environment: {},
+      environment: {
+        TABLE_NAME: connectionsTable.tableName,
+      },
     });
+    connectionsTable.grantFullAccess(connectionLambda);
 
     const requestHandlerLambda = new NodejsFunction(this, 'RequestHandlerLambda', {
       entry: "../src/lambda/request-handler.ts",
@@ -38,11 +58,10 @@ export class SpiderzCdkStack extends Stack {
       memorySize: 1024,
       tracing: Tracing.ACTIVE,
       functionName: "RequestHandler",
-      description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB. Sends ChatMessageReceived events to EventBridge.",
+      description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB.",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
       environment: {},
     });
-
 
     const webSocketApi = new WebSocketApi(this, 'WebsocketApi', {
       apiName: 'WebSocketApi',
@@ -60,9 +79,38 @@ export class SpiderzCdkStack extends Stack {
 
     const websocketStage = new WebSocketStage(this, 'WebsocketStage', {
       webSocketApi,
-      stageName: 'chat',
+      stageName: 'play',
       autoDeploy: true,
     });
+
+    const responseHandlerLambda = new NodejsFunction(this, 'ResponseHandlerLambda', {
+      entry: "../src/lambda/response-handler.ts",
+      handler: "handler",
+      runtime: Runtime.NODEJS_20_X,
+      timeout: Duration.seconds(5),
+      memorySize: 1024,
+      tracing: Tracing.ACTIVE,
+      functionName: "ResponseHandler",
+      description: "Gets invoked when a new event occurs.",
+      depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
+      environment: {
+        TABLE_NAME: connectionsTable.tableName,
+        API_GATEWAY_ENDPOINT: websocketStage.callbackUrl,
+      },
+    });
+    connectionsTable.grantReadData(responseHandlerLambda);
+
+    // Create policy to allow Lambda function to use @connections API of API Gateway
+    const allowConnectionManagementOnApiGatewayPolicy = new PolicyStatement({
+      effect: Effect.ALLOW,
+      resources: [
+        `arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/${websocketStage.stageName}/*`,
+      ],
+      actions: ['execute-api:ManageConnections'],
+    });
+
+    responseHandlerLambda.addToRolePolicy(allowConnectionManagementOnApiGatewayPolicy);
+    connectionsTable.grantReadData(responseHandlerLambda);
 
   }
 }

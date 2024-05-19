@@ -2,7 +2,7 @@
   "name": "cdk",
   "version": "0.1.0",
   "bin": {
-    "cdk": "bin/cdk.js"
+    "cdk": "bin/spiderz-cdk.js"
   },
   "scripts": {
     "build": "tsc",
@@ -20,6 +20,7 @@
     "typescript": "~5.4.5"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.577.0",
     "aws-cdk-lib": "^2.142.1",
     "constructs": "^10.3.0",
     "source-map-support": "^0.5.21"
