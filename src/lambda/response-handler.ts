@@ -1,7 +1,8 @@
-import { EventBridgeEvent } from 'aws-lambda';
+import { SQSBatchResponse, SQSHandler } from 'aws-lambda';
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
+import { ApiGatewayManagementApi, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
+import { SocketEvent } from '../models/socket-event';
 
 const AWSXRay = require('aws-xray-sdk-core');
 
@@ -12,12 +13,6 @@ const gatewayClient = new ApiGatewayManagementApi({
   apiVersion: '2018-11-29',
   endpoint: process.env.API_GATEWAY_ENDPOINT,
 });
-
-interface ResponseEventDetails {
-  message: string;
-  senderConnectionId: string;
-  chatId: string;
-}
 
 async function getConnections(senderConnectionId: string, roomId: string): Promise<any> {
   const { Items: connections } = await dynamoDbClient.send(new QueryCommand({
@@ -34,15 +29,31 @@ async function getConnections(senderConnectionId: string, roomId: string): Promi
     .filter((connectionId: string) => connectionId !== senderConnectionId);
 }
 
-export async function handler(event: EventBridgeEvent<'EventResponse', ResponseEventDetails>): Promise<any> {
-  console.log('Triggered by ', event);
-  const connections = await getConnections(event.detail.senderConnectionId, event.detail.chatId);
-  console.log('Found connections in this region ', connections);
-  const postToConnectionPromises = connections
-    .map((connectionId: string) => gatewayClient.postToConnection({
-      ConnectionId: connectionId,
-      Data: JSON.stringify({ data: event.detail.message }),
-    }));
-  await Promise.allSettled(postToConnectionPromises!);
-  return true;
-}
+export const handler: SQSHandler = async (event): Promise<SQSBatchResponse> => {
+    for (const record of event.Records) {
+        const body = JSON.parse(record.body) as SocketEvent;
+
+        try {
+            const connections = await getConnections(body.connectionId, "DEFAULT");
+
+            await Promise.allSettled(connections.map(async connectionId => {
+                const command = new PostToConnectionCommand({
+                    ConnectionId: connectionId,
+                    Data: JSON.stringify(body.eventBody),
+                });
+        
+                try {
+                    await gatewayClient.send(command);
+                    console.log("Success");
+                } catch (error) {
+                    console.error(`Error sending message to connection ${connectionId}:`, error);
+                }
+            }));
+        } catch (error) {
+            console.error(`Error processing message`, error);
+        }
+    }
+
+    // Return empty batch item failures to acknowledge all messages as successfully processed
+    return { batchItemFailures: [] };
+};

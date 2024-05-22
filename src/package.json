@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.577.0",
     "@aws-sdk/client-dynamodb": "^3.577.0",
+    "@aws-sdk/client-sqs": "^3.577.0",
     "@aws-sdk/lib-dynamodb": "^3.577.0",
     "@types/aws-lambda": "^8.10.138",
     "@types/node": "^20.12.12",

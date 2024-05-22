@@ -2,14 +2,15 @@
 import { Construct } from 'constructs';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import {
-  Effect, PolicyStatement, Role, ServicePrincipal,
+  Effect, PolicyStatement, Role, ServicePrincipal, AnyPrincipal
 } from 'aws-cdk-lib/aws-iam';
+import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 
 import {
   CfnOutput, Duration, RemovalPolicy, Stack, StackProps
@@ -19,6 +20,12 @@ import path = require('path');
 export class SpiderzCdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    const statusQueue = new Queue(this, 'user-status-queue', {
+      visibilityTimeout: Duration.seconds(30),      // default,
+      receiveMessageWaitTime: Duration.seconds(20), // default
+      encryption: QueueEncryption.KMS_MANAGED
+    });
 
     const connectionsTable = new Table(this, 'WebsocketConnections', {
       billingMode: BillingMode.PAY_PER_REQUEST,
@@ -46,9 +53,11 @@ export class SpiderzCdkStack extends Stack {
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
       environment: {
         TABLE_NAME: connectionsTable.tableName,
+        STATUS_QUEUE_URL: statusQueue.queueUrl,
       },
     });
     connectionsTable.grantFullAccess(connectionLambda);
+    statusQueue.grantSendMessages(connectionLambda);
 
     const requestHandlerLambda = new NodejsFunction(this, 'RequestHandlerLambda', {
       entry: "../src/lambda/request-handler.ts",
@@ -60,8 +69,12 @@ export class SpiderzCdkStack extends Stack {
       functionName: "RequestHandler",
       description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB.",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
-      environment: {},
+      environment: {
+        STATUS_QUEUE_URL: statusQueue.queueUrl,
+      },
     });
+    statusQueue.grantSendMessages(requestHandlerLambda);
+  
 
     const webSocketApi = new WebSocketApi(this, 'WebsocketApi', {
       apiName: 'WebSocketApi',
@@ -99,6 +112,8 @@ export class SpiderzCdkStack extends Stack {
       },
     });
     connectionsTable.grantReadData(responseHandlerLambda);
+    responseHandlerLambda.addEventSource(new SqsEventSource(statusQueue));
+    statusQueue.grantConsumeMessages(responseHandlerLambda);
 
     // Create policy to allow Lambda function to use @connections API of API Gateway
     const allowConnectionManagementOnApiGatewayPolicy = new PolicyStatement({
