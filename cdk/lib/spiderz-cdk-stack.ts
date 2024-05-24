@@ -6,7 +6,7 @@ import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 
 import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import path = require('path');
@@ -18,7 +18,6 @@ export class SpiderzCdkStack extends Stack {
     const statusQueue = new Queue(this, 'user-status-queue', {
       visibilityTimeout: Duration.seconds(30),      // default,
       receiveMessageWaitTime: Duration.seconds(20), // default
-      encryption: QueueEncryption.KMS_MANAGED
     });
 
     const connectionsTable = new Table(this, 'WebsocketConnections', {
