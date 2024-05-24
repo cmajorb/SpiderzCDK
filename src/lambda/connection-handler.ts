@@ -6,11 +6,9 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
 import generateLambdaProxyResponse from './utils';
 
-const AWSXRay = require('aws-xray-sdk-core');
-
-const client = AWSXRay.captureAWSv3Client(new DynamoDBClient({}));
+const client = new DynamoDBClient({});
 const dynamoDbClient = DynamoDBDocumentClient.from(client);
-const SQS = AWSXRay.captureAWSv3Client(new SQSClient());
+const SQS = new SQSClient();
 
 export async function connectionHandler(event: APIGatewayEvent): Promise<any> {
   const { eventType, connectionId } = event.requestContext;

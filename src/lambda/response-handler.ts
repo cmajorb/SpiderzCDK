@@ -4,9 +4,7 @@ import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ApiGatewayManagementApi, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
 import { SocketEvent } from '../models/socket-event';
 
-const AWSXRay = require('aws-xray-sdk-core');
-
-const client = AWSXRay.captureAWSv3Client(new DynamoDBClient({}));
+const client = new DynamoDBClient({});
 const dynamoDbClient = DynamoDBDocumentClient.from(client);
 
 const gatewayClient = new ApiGatewayManagementApi({

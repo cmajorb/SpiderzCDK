@@ -3,8 +3,7 @@ import { SocketEvent } from '../models/socket-event';
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { APIGatewayProxyEvent } from 'aws-lambda';
 
-const AWSXRay = require('aws-xray-sdk-core');
-const SQS = AWSXRay.captureAWSv3Client(new SQSClient());
+const SQS = new SQSClient();
 
 export async function handleMessage(event: APIGatewayProxyEvent) {
   console.log('Received event ', event);

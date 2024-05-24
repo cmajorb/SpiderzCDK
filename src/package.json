@@ -15,7 +15,6 @@
     "@aws-sdk/lib-dynamodb": "^3.577.0",
     "@types/aws-lambda": "^8.10.138",
     "@types/node": "^20.12.12",
-    "aws-cdk": "^2.142.1",
-    "aws-xray-sdk-core": "^3.6.0"
+    "aws-cdk": "^2.142.1"
   }
 }
