@@ -1,7 +1,7 @@
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -40,7 +40,6 @@ export class SpiderzCdkStack extends Stack {
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(5),
       memorySize: 1024,
-      tracing: Tracing.ACTIVE,
       functionName: "ConnectionHandler",
       description: "Handles the onConnect & onDisconnect events emitted by the WebSocket API Gateway",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
@@ -58,7 +57,6 @@ export class SpiderzCdkStack extends Stack {
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(5),
       memorySize: 1024,
-      tracing: Tracing.ACTIVE,
       functionName: "RequestHandler",
       description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB.",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
@@ -96,7 +94,6 @@ export class SpiderzCdkStack extends Stack {
       runtime: Runtime.NODEJS_20_X,
       timeout: Duration.seconds(5),
       memorySize: 1024,
-      tracing: Tracing.ACTIVE,
       functionName: "ResponseHandler",
       description: "Gets invoked when a new event occurs.",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
