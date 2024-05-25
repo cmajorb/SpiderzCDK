@@ -28,7 +28,8 @@ export async function connectionHandler(event: APIGatewayEvent): Promise<any> {
         let socketEvent = new SocketEvent({
             connectionId: connectionId,
             eventBody: `New user connected: ${connectionId}`,
-            eventDate: new Date()
+            eventDate: new Date(),
+            roomId: "DEFAULT"
         });
 
         const command = new SendMessageCommand({
@@ -55,7 +56,8 @@ export async function connectionHandler(event: APIGatewayEvent): Promise<any> {
   }
 
   if (eventType === 'DISCONNECT') {
-    await dynamoDbClient.send( new DeleteCommand({
+    //I shouldn't need to delete them in the future
+    await dynamoDbClient.send(new DeleteCommand({
       TableName: process.env.TABLE_NAME!,
       Key: {
         connectionId,
@@ -68,7 +70,8 @@ export async function connectionHandler(event: APIGatewayEvent): Promise<any> {
         let socketEvent = new SocketEvent({
             connectionId: connectionId,
             eventBody: `User ${connectionId} disconnected`,
-            eventDate: new Date()
+            eventDate: new Date(),
+            roomId: "DEFAULT" //this should be whatever room they are in
         });
 
         const command = new SendMessageCommand({

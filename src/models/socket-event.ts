@@ -12,4 +12,13 @@ export class SocketEvent extends Payload {
     public eventType!: string;
     public eventBody!: Object;
     public eventDate!: Date;
+    public roomId!: string;
+}
+
+export class Client {
+    public name!: string;
+    public sessionId!: string;
+    public gameSize!: number;
+    public state!: number;
+    public waitTime!: number;
 }

@@ -63,11 +63,12 @@ export class SpiderzCdkStack extends Stack {
       description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB.",
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
       environment: {
+        TABLE_NAME: connectionsTable.tableName,
         STATUS_QUEUE_URL: statusQueue.queueUrl,
       },
     });
     statusQueue.grantSendMessages(requestHandlerLambda);
-  
+    connectionsTable.grantFullAccess(requestHandlerLambda);
 
     const webSocketApi = new WebSocketApi(this, 'WebsocketApi', {
       apiName: 'WebSocketApi',

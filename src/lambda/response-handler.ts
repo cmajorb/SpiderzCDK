@@ -32,12 +32,12 @@ export const handler: SQSHandler = async (event): Promise<SQSBatchResponse> => {
         const body = JSON.parse(record.body) as SocketEvent;
 
         try {
-            const connections = await getConnections(body.connectionId, "DEFAULT");
+            const connections = await getConnections(body.connectionId, body.roomId);
 
             await Promise.allSettled(connections.map(async connectionId => {
                 const command = new PostToConnectionCommand({
                     ConnectionId: connectionId,
-                    Data: JSON.stringify(body.eventBody),
+                    Data: JSON.stringify(body),
                 });
         
                 try {
