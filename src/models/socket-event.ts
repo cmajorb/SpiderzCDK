@@ -9,6 +9,7 @@ export class SocketEvent extends Payload {
         Object.assign(this, init);
     } 
     public connectionId!: string;
+    public sessionId!: string;
     public eventType!: string;
     public eventBody!: Object;
     public eventDate!: Date;
@@ -18,7 +19,15 @@ export class SocketEvent extends Payload {
 export class Client {
     public name!: string;
     public sessionId!: string;
+    public connectionId!: string;
     public gameSize!: number;
     public state!: number;
     public waitTime!: number;
+}
+
+export class DBClient {
+    public sessionId!: string;
+    public roomId!: string;
+    public connectionId!: string;
+    public ttl!: number;
 }

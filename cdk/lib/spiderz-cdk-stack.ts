@@ -25,14 +25,18 @@ export class SpiderzCdkStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
       tableName: 'WebsocketConnections',
       partitionKey: {
-        name: 'roomId',
+        name: 'sessionId',
         type: AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'connectionId',
-        type: AttributeType.STRING,
-      },
+      }
     });
+
+    connectionsTable.addGlobalSecondaryIndex({
+      indexName: 'connections-by-room-id',
+      partitionKey: {
+        name: 'roomId',
+        type: AttributeType.STRING
+      }
+    })
 
     const connectionLambda = new NodejsFunction(this, 'ConnectionHandlerLambda', {
       entry: "../src/lambda/connection-handler.ts",
@@ -115,6 +119,7 @@ export class SpiderzCdkStack extends Stack {
       actions: ['execute-api:ManageConnections'],
     });
 
+    connectionsTable.grantFullAccess(responseHandlerLambda);
     responseHandlerLambda.addToRolePolicy(allowConnectionManagementOnApiGatewayPolicy);
     connectionsTable.grantReadData(responseHandlerLambda);
 

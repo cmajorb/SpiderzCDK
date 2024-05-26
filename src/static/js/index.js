@@ -1,5 +1,5 @@
 
-const socket = new WebSocket('wss://xtmalx2w47.execute-api.us-east-1.amazonaws.com/play');
+const socket = new WebSocket('wss://2n41eynmpl.execute-api.us-east-1.amazonaws.com/play');
 
 
 let sessionId = sessionStorage.getItem('sessionId');
@@ -30,8 +30,16 @@ socket.addEventListener('message', (event) => {
     if(message.eventType == "register error") {
         document.getElementById("error-msg").innerHTML = message.eventBody;
     } else if (message.eventType == "set-session-acknowledgement") {
+        console.log("got session set event: " + message.eventBody);
         sessionId = message.eventBody;
         sessionStorage.setItem('sessionId', sessionId);
+    } else if (message.eventType == "joining") {
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("myForm").style.display = "none";
+        if(message.eventBody !== undefined) {
+          document.getElementById("status").innerHTML = message.eventBody;
+        }
+        console.log("joining");
     }
 });
 

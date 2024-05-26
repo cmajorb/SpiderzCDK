@@ -14,86 +14,13 @@ export async function connectionHandler(event: APIGatewayEvent): Promise<any> {
   const { eventType, connectionId } = event.requestContext;
 
   if (eventType === 'CONNECT') {
-    const oneHourFromNow = Math.round(Date.now() / 1000 + 3600);
-    await dynamoDbClient.send( new PutCommand({
-      TableName: process.env.TABLE_NAME!,
-      Item: {
-        connectionId,
-        roomId: 'DEFAULT',
-        ttl: oneHourFromNow,
-      },
-    }));
-
-    try {
-        let socketEvent = new SocketEvent({
-            connectionId: connectionId,
-            eventBody: `New user connected: ${connectionId}`,
-            eventDate: new Date(),
-            roomId: "DEFAULT"
-        });
-
-        const command = new SendMessageCommand({
-            QueueUrl: process.env.STATUS_QUEUE_URL,
-            MessageBody: JSON.stringify(socketEvent),
-            MessageAttributes: {
-                Type: {
-                    StringValue: 'StatusUpdate',
-                    DataType: 'String',
-                },
-            },
-        });
-
-        let sqsResults = await SQS.send(command);
-        console.log(sqsResults);
-    } catch (error: any) {
-        console.log("Failed to push to SQS");
-        var body = error.stack || JSON.stringify(error, null, 2);
-        console.log(body);
-        return generateLambdaProxyResponse(500, 'Error');
-    }
+    console.log("New connection");
 
     return generateLambdaProxyResponse(200, 'Connected');
   }
 
   if (eventType === 'DISCONNECT') {
-    //I shouldn't need to delete them in the future
-    await dynamoDbClient.send(new DeleteCommand({
-      TableName: process.env.TABLE_NAME!,
-      Key: {
-        connectionId,
-        roomId: 'DEFAULT',
-      },
-    }));
-
-    try {
-        // Prepare status change event for broadcast
-        let socketEvent = new SocketEvent({
-            connectionId: connectionId,
-            eventBody: `User ${connectionId} disconnected`,
-            eventDate: new Date(),
-            roomId: "DEFAULT" //this should be whatever room they are in
-        });
-
-        const command = new SendMessageCommand({
-            QueueUrl: process.env.STATUS_QUEUE_URL,
-            MessageBody: JSON.stringify(socketEvent),
-            MessageAttributes: {
-                Type: {
-                    StringValue: 'StatusUpdate',
-                    DataType: 'String',
-                },
-            },
-        });
-
-        // Put status change event to SQS queue
-        let sqsResults = await SQS.send(command);
-        console.log(sqsResults);
-    } catch (error: any) {
-        console.log("Failed to push to SQS");
-        var body = error.stack || JSON.stringify(error, null, 2);
-        console.log(body);
-        return generateLambdaProxyResponse(500, 'Error');
-    }
+    console.log("Player disconnected");
 
     return generateLambdaProxyResponse(200, 'Disconnected');
   }
