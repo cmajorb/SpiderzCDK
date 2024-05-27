@@ -1,14 +1,11 @@
 import generateLambdaProxyResponse from './utils';
-import { SocketEvent, Client, DBClient } from '../models/socket-event';
+import { SocketEvent, Client } from '../models/socket-event';
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, DeleteCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import DynamoDBUtil from '../utilities/dynamo-utility';
 
 const SQS = new SQSClient();
-const crypto = require("crypto");
-const client = new DynamoDBClient({});
-const dynamoDbClient = DynamoDBDocumentClient.from(client);
+const dbUtil = new DynamoDBUtil();
 
 export async function handleMessage(event: APIGatewayProxyEvent) {
   console.log('Received event ', event);
@@ -44,14 +41,14 @@ export async function handleMessage(event: APIGatewayProxyEvent) {
 async function startSession(response: SocketEvent, val: SocketEvent) {
     console.log("Starting session");
     console.log(val);
-    var currentClient = await getClientById(val.eventBody);
+    var currentClient = await dbUtil.getClientById(val.eventBody);
     if(currentClient) {
-        var resp = await updateConnectionId(currentClient.sessionId, val.connectionId);
+        var resp = await dbUtil.updateConnectionId(currentClient.sessionId, val.connectionId);
         console.log("Client already exists");
         console.log(resp);
     } else {
         console.log("Creating new client");
-        var newClient = await createClient(val.connectionId);
+        var newClient = await dbUtil.createClient(val.connectionId);
         response.eventType = "set-session-acknowledgement"
         response.eventBody = newClient.sessionId;
     }
@@ -59,20 +56,6 @@ async function startSession(response: SocketEvent, val: SocketEvent) {
     return response
 }
 
-async function updateConnectionId(sessionId, connectionId) {
-    var resp = await dynamoDbClient.send(new UpdateCommand({
-            TableName: process.env.TABLE_NAME!,
-            Key: {
-                sessionId: sessionId
-            },
-            UpdateExpression: "set connectionId = :con",
-            ExpressionAttributeValues: {
-            ":con": connectionId,
-            },
-            ReturnValues: "ALL_NEW",
-        }));
-        return resp;
-}
 
 async function register(response: SocketEvent, val: SocketEvent) {
     var client = val.eventBody as Client;
@@ -85,23 +68,10 @@ async function register(response: SocketEvent, val: SocketEvent) {
             const roomId = "waitRoom" + client.gameSize;
             console.log(client.sessionId + " changed name to " + client.name);
             console.log(JSON.stringify(client));
-            var resp = await changeRooms(client, roomId);
+            var resp = await dbUtil.changeRooms(client, roomId);
             console.log(resp);
-            const { Items: waitingRoomConnections } = await dynamoDbClient.send(new QueryCommand({
-                TableName: process.env.TABLE_NAME!,
-                IndexName: 'connections-by-room-id',
-                KeyConditionExpression: 'roomId = :c',
-                ExpressionAttributeValues: {
-                  ':c': roomId,
-                },
-                ProjectionExpression: 'sessionId',
-                Limit: +client.gameSize
-              }));
-              console.log("DONE!");
-              console.log(waitingRoomConnections);
-              const clients: String[] = waitingRoomConnections as String[];
-              console.log(clients);
-              var numOfPlayers = clients.length;
+         
+            var numOfPlayers = await dbUtil.getClientCountByRoom(roomId);
             
             response.eventType = "joining";
             response.eventBody = 'Joining game (' + numOfPlayers + '/' + client.gameSize + ' players)';
@@ -116,47 +86,6 @@ async function register(response: SocketEvent, val: SocketEvent) {
             response.roomId = "DEFAULT"
           }
     return response
-}
-
-async function getClientById(sessionId):Promise<DBClient|undefined> {
-    if(sessionId == null) {
-        return;
-    }
-    const { Items: results } = await dynamoDbClient.send(new QueryCommand({
-        TableName: process.env.TABLE_NAME!,
-        KeyConditionExpression: 'sessionId = :c',
-        ExpressionAttributeValues: {
-          ':c': sessionId,
-        },
-        // ProjectionExpression: 'connectionId',
-        Limit: 1
-      }));
-
-      const clients: DBClient[] = results as DBClient[];
-      return clients[0]
-}
-
-async function createClient(connectionId) {
-    var newClient = new Client();
-    newClient.sessionId = crypto.randomBytes(16).toString("hex");
-    newClient.connectionId = connectionId;
-    newClient.state = 1;
-    console.log("creating new client:");
-    console.log(newClient);
-
-    const oneHourFromNow = Math.round(Date.now() / 1000 + 3600);
-    await dynamoDbClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME!,
-      Item: {
-        sessionId: newClient.sessionId,
-        roomId: 'DEFAULT',
-        connectionId: connectionId,
-        ttl: oneHourFromNow,
-      },
-    }));
-
-
-    return newClient;
 }
 
 async function sendMessage(message, type) {
@@ -174,19 +103,4 @@ async function sendMessage(message, type) {
     });
     let sqsResults = await SQS.send(command);
     console.log(sqsResults);
-}
-
-async function changeRooms(client: Client, newRoom) {
-    var resp = await dynamoDbClient.send(new UpdateCommand({
-        TableName: process.env.TABLE_NAME!,
-        Key: {
-            sessionId: client.sessionId
-        },
-        UpdateExpression: "set roomId = :room",
-        ExpressionAttributeValues: {
-            ":room": newRoom,
-        },
-        ReturnValues: "ALL_NEW",
-    }));
-    return resp;
 }
