@@ -18,9 +18,10 @@ export default class DynamoDBUtil {
                 Key: {
                     sessionId: sessionId
                 },
-                UpdateExpression: "set connectionId = :con",
+                UpdateExpression: "set connectionId = :con, roomId = :room",
                 ExpressionAttributeValues: {
                 ":con": connectionId,
+                ":room": "DEFAULT"
                 },
                 ReturnValues: "ALL_NEW",
             }));
