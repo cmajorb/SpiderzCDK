@@ -1,5 +1,5 @@
 import generateLambdaProxyResponse from './utils';
-import { SocketEvent, Client } from '../models/socket-event';
+import { SocketEvent, Client, EventType } from '../models/socket-event';
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import DynamoDBUtil from '../utilities/dynamo-utility';
@@ -15,20 +15,19 @@ export async function handleMessage(event: APIGatewayProxyEvent) {
   response.roomId = "DEFAULT";
   response.connectionId = event.requestContext.connectionId!;
   try {
-    if(val.eventType == "click") {
-       response = val;
-    } else if (val.eventType == "start-session") {
-        response = await startSession(response, val);
-        await sendMessage(response, "ConnectionMessage");
-    } else if(val.eventType == "register") {
-        response = await register(response, val);
-        await sendMessage(response, "RoomMessage");
-    } else {
-        console.log("Unrecognized type: " + val.eventType);
-        return generateLambdaProxyResponse(500, 'Error');
-    }
-
-    
+    switch (val.eventType) {
+        case EventType.Register:
+            response = await register(response, val);
+            await sendMessage(response, "RoomMessage");
+            break;
+        case EventType.StartSession:
+            response = await startSession(response, val);
+            await sendMessage(response, "ConnectionMessage");
+            break;
+        default:
+            console.log("Unrecognized type: " + val.eventType);
+            return generateLambdaProxyResponse(500, 'Error');
+    }    
 } catch (error: any) {
     console.log("Failed to push to SQS");
     var body = error.stack || JSON.stringify(error, null, 2);
@@ -49,7 +48,7 @@ async function startSession(response: SocketEvent, val: SocketEvent) {
     } else {
         console.log("Creating new client");
         var newClient = await dbUtil.createClient(val.connectionId);
-        response.eventType = "set-session-acknowledgement"
+        response.eventType = EventType.ConfirmSession;
         response.eventBody = newClient.sessionId;
     }
     
@@ -73,7 +72,7 @@ async function register(response: SocketEvent, val: SocketEvent) {
          
             var numOfPlayers = await dbUtil.getClientCountByRoom(roomId);
             
-            response.eventType = "joining";
+            response.eventType = EventType.Joining;
             response.eventBody = 'Joining game (' + numOfPlayers + '/' + client.gameSize + ' players)';
             console.log(response.eventBody);
             response.roomId = roomId;
@@ -81,7 +80,7 @@ async function register(response: SocketEvent, val: SocketEvent) {
           else {
             console.log("Naming error");
             var msg = "Name cannot be blank";
-            response.eventType = "register error";
+            response.eventType = EventType.RegisterError;
             response.eventBody = msg;
             response.roomId = "DEFAULT"
           }

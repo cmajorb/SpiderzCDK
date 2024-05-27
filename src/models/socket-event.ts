@@ -31,3 +31,11 @@ export class DBClient {
     public connectionId!: string;
     public ttl!: number;
 }
+
+export enum EventType {
+    RegisterError = "register error",
+    Joining = "joining",
+    ConfirmSession = "confirm session",
+    Register = "register",
+    StartSession = "start-session"
+}
