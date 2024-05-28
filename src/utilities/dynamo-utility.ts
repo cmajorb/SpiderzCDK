@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand, DeleteCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { DBClient, Client } from '../models/socket-event';
+import { DBClient, Client, CanvasData, CANVAS_SIZES, Game, GameData, Spider } from '../models/socket-event';
 const crypto = require("crypto");
 
 export default class DynamoDBUtil {
@@ -46,30 +46,32 @@ export default class DynamoDBUtil {
           return clients[0]
     }
 
-    async getClientCountByRoom(roomId):Promise<Number> {
-        const { Items: waitingRoomConnections } = await this.dynamoDbClient.send(new QueryCommand({
+    async getClientsByRoom(roomId, limit: number):Promise<DBClient[]> {
+        var command = new QueryCommand({
             TableName: process.env.TABLE_NAME!,
             IndexName: 'connections-by-room-id',
             KeyConditionExpression: 'roomId = :c',
             ExpressionAttributeValues: {
               ':c': roomId,
             },
-            ProjectionExpression: 'sessionId',
-            // Limit: +client.gameSize
-          }));
-          const clients: String[] = waitingRoomConnections as String[];
-          return clients.length;
+            ProjectionExpression: 'sessionId, clientName',
+            Limit: limit
+          });
+
+        const { Items: clients } = await this.dynamoDbClient.send(command);
+        return clients as DBClient[];
     }
 
-    async changeRooms(client: Client, newRoom) {
+    async changeRooms(client: Client, newRoom, clientName) {
         var resp = await this.dynamoDbClient.send(new UpdateCommand({
             TableName: process.env.TABLE_NAME!,
             Key: {
                 sessionId: client.sessionId
             },
-            UpdateExpression: "set roomId = :room",
+            UpdateExpression: "set roomId = :room, clientName = :clientName",
             ExpressionAttributeValues: {
                 ":room": newRoom,
+                ":clientName": clientName,
             },
             ReturnValues: "ALL_NEW",
         }));
@@ -131,5 +133,67 @@ export default class DynamoDBUtil {
           // .filter((connectionId: string) => connectionId !== senderConnectionId);
       }
 
+      async createRoom(clients: DBClient[]) {
+        var roomId = crypto.randomBytes(16).toString("hex");
+        const waitingRoom = "waitRoom" + clients.length;
+        var spiders: Spider[] = [];
+        console.log("MB FLAG");
+        console.log(waitingRoom);
+        console.log(clients);
+        for (const client of clients) {
+            console.log(client.sessionId);
+            const updateCommand = new UpdateCommand({
+                TableName: process.env.TABLE_NAME!,
+                Key: {
+                    sessionId: client.sessionId
+                },
+                UpdateExpression: "set roomId = :roomId",
+                ConditionExpression: "roomId= :waitingRoom",
+                ExpressionAttributeValues: {
+                    ":roomId": roomId,
+                    ":waitingRoom": waitingRoom
+                }
+            });
+            spiders.push(new Spider(client.sessionId,client.clientName,0,false));
+
+            try {
+                await this.dynamoDbClient.send(updateCommand);
+                console.log(`Added ${client.sessionId} to room ${roomId}`);
+            } catch (error) {
+                if (error.name === 'ConditionalCheckFailedException') {
+                    console.log(`Session ${client.sessionId} was modified by another process.`);
+                } else {
+                    console.error(`Error updating ${client.sessionId}:`, error);
+                }
+            }
+        }
+        const canvasId = clients.length - 1;
+        var canvasData = new CanvasData({
+            RandomDensity: 0.25,
+            Sections: CANVAS_SIZES[canvasId][0],
+            Size: CANVAS_SIZES[canvasId][1],
+            GapSize: CANVAS_SIZES[canvasId][2],
+            SpiderSize: CANVAS_SIZES[canvasId][2]/10
+          });
+        var gameData = new GameData({
+            playerData: spiders,
+            gameState: 1
+        });
+
+        var game = new Game({
+            gameId: roomId,
+            gameData: gameData,
+            canvasData: canvasData
+        });
+        await this.dynamoDbClient.send(new PutCommand({
+            TableName: process.env.GAME_TABLE_NAME!,
+            Item: {
+              gameId: game.gameId,
+              data: JSON.stringify(game)
+            },
+          }));
+
+        return roomId;
+    }
 }
 

@@ -61,21 +61,28 @@ async function register(response: SocketEvent, val: SocketEvent) {
     client.connectionId = val.connectionId;
 
         if(client.name) {
+            const roomId = "waitRoom" + client.gameSize;
+
             client.state = 2;
             client.waitTime = Date.now();
             
-            const roomId = "waitRoom" + client.gameSize;
             console.log(client.sessionId + " changed name to " + client.name);
             console.log(JSON.stringify(client));
-            var resp = await dbUtil.changeRooms(client, roomId);
+            var resp = await dbUtil.changeRooms(client, roomId, client.name);
             console.log(resp);
          
-            var numOfPlayers = await dbUtil.getClientCountByRoom(roomId);
-            
-            response.eventType = EventType.Joining;
-            response.eventBody = 'Joining game (' + numOfPlayers + '/' + client.gameSize + ' players)';
-            console.log(response.eventBody);
-            response.roomId = roomId;
+            var clientsAvailable = await dbUtil.getClientsByRoom(roomId, +client.gameSize);
+            if(clientsAvailable.length == client.gameSize) {
+                const newRoomId = await dbUtil.createRoom(clientsAvailable);
+                response.eventType = EventType.Paired;
+                response.eventBody = newRoomId;
+                response.roomId = newRoomId;
+            } else {
+                response.eventType = EventType.Joining;
+                response.eventBody = 'Joining game (' + clientsAvailable.length  + '/' + client.gameSize + ' players)';
+                console.log(response.eventBody);
+                response.roomId = roomId;
+            }
           }
           else {
             console.log("Naming error");

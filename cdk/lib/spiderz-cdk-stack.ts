@@ -38,6 +38,16 @@ export class SpiderzCdkStack extends Stack {
       }
     })
 
+    const gameTable = new Table(this, 'Games', {
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+      tableName: 'Games',
+      partitionKey: {
+        name: 'gameId',
+        type: AttributeType.STRING,
+      }
+    });
+
     const connectionLambda = new NodejsFunction(this, 'ConnectionHandlerLambda', {
       entry: "../src/lambda/connection-handler.ts",
       handler: "connectionHandler",
@@ -66,11 +76,13 @@ export class SpiderzCdkStack extends Stack {
       depsLockFilePath: path.join(__dirname, '..', '..', 'src', 'package-lock.json'),
       environment: {
         TABLE_NAME: connectionsTable.tableName,
+        GAME_TABLE_NAME: gameTable.tableName,
         STATUS_QUEUE_URL: statusQueue.queueUrl,
       },
     });
     statusQueue.grantSendMessages(requestHandlerLambda);
     connectionsTable.grantFullAccess(requestHandlerLambda);
+    gameTable.grantFullAccess(requestHandlerLambda);
 
     const webSocketApi = new WebSocketApi(this, 'WebsocketApi', {
       apiName: 'WebSocketApi',
