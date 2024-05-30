@@ -58,7 +58,9 @@ socket.addEventListener('message', (event) => {
             break;
 
         case EventType.Paired:
-            window.location.href = "/game";
+            console.log("Saving game ID: " + message.eventBody);
+            sessionStorage.setItem('gameId', message.eventBody);
+            window.location.href = "/game.html";
             break;
 
         default:

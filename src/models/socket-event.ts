@@ -3,6 +3,9 @@
 
 import { Payload } from "./payload"
 export const CANVAS_SIZES = [[6,5,30],[10,9,30],[12,11,25],[14,13,25]];
+export const NEUTRAL_COLOR = "#c0c0c0";
+export const COLORS = ["#FF0000","#0000FF","#FFFF00","#00FF00"];
+
 
 export class SocketEvent extends Payload {
     constructor(init?:Partial<SocketEvent>) {
@@ -62,6 +65,23 @@ export class Spider {
     public isComputer: boolean;
 }
 
+export type Edge = [number, number];
+export type Node = [number, string];
+
+export class MapNode {
+    constructor(edges,layer,position) {
+        this.edges = edges;
+        this.children = [];
+        this.layer = layer;
+        this.value = -1;
+        this.position = position;
+      }
+      public edges: Edge[];
+      public children: MapNode[];
+      public layer: number;
+      public value: number;
+      public position: number;
+}
 
 export class GameData {
     constructor(source: Partial<GameData>) {
@@ -69,6 +89,12 @@ export class GameData {
     }
     public gameState: number;
     public playerData: Spider[];
+    public nodes: Node[];
+    public edges: Edge[];
+    public winner: string;
+    public turnCount: number;
+    public currentPlayer: Spider;
+    public gameTree: MapNode|null;
 }
 
 export class CanvasData {
@@ -88,5 +114,10 @@ export enum EventType {
     ConfirmSession = "confirm session",
     Register = "register",
     StartSession = "start-session",
-    Paired = "paired"
+    Paired = "paired",
+
+    State = "state",
+    StartGame = "start game",
+    PlayerConnect = "player connect",
+    InitGame = "init"
 }

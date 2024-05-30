@@ -24,6 +24,10 @@ export async function handleMessage(event: APIGatewayProxyEvent) {
             response = await startSession(response, val);
             await sendMessage(response, "ConnectionMessage");
             break;
+        case EventType.PlayerConnect:
+            response = await playerConnect(response, val)
+            await sendMessage(response, "ConnectionMessage");
+            break;
         default:
             console.log("Unrecognized type: " + val.eventType);
             return generateLambdaProxyResponse(500, 'Error');
@@ -109,4 +113,15 @@ async function sendMessage(message, type) {
     });
     let sqsResults = await SQS.send(command);
     console.log(sqsResults);
+}
+
+async function playerConnect(response: SocketEvent, val: SocketEvent) {
+    //verify the user
+    console.log("Player connect");
+    console.log(val);
+    var gameData = await dbUtil.getGameById(val.roomId);
+    response.eventType = EventType.InitGame;
+    response.eventBody = gameData;
+    response.roomId = gameData.gameId;
+    return response;
 }

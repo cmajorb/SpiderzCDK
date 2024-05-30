@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand, DeleteCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DBClient, Client, CanvasData, CANVAS_SIZES, Game, GameData, Spider } from '../models/socket-event';
+import GameUtils from './game-utility';
 const crypto = require("crypto");
 
 export default class DynamoDBUtil {
@@ -133,6 +134,19 @@ export default class DynamoDBUtil {
           // .filter((connectionId: string) => connectionId !== senderConnectionId);
       }
 
+      async getGameById(gameId: string): Promise<Game> {
+        console.log("Getting game " + gameId);
+        const { Items: connections } = await this.dynamoDbClient.send(new QueryCommand({
+          TableName: process.env.GAME_TABLE_NAME!,
+          KeyConditionExpression: 'gameId = :game',
+          ExpressionAttributeValues: {
+            ':game': gameId,
+          },
+          ProjectionExpression: 'gameData',
+        }));
+        return connections!.map((c: any) => c.gameData)[0] as Game;
+      }
+
       async createRoom(clients: DBClient[]) {
         var roomId = crypto.randomBytes(16).toString("hex");
         const waitingRoom = "waitRoom" + clients.length;
@@ -175,21 +189,32 @@ export default class DynamoDBUtil {
             GapSize: CANVAS_SIZES[canvasId][2],
             SpiderSize: CANVAS_SIZES[canvasId][2]/10
           });
+
+        var edges = GameUtils.linearRender(canvasData.Sections,canvasData.Size)
+        var nodesAndEdges = GameUtils.randomGenerate(canvasData.Sections,canvasData.Size,canvasData.RandomDensity,edges,spiders.length)
+        var currentPlayer = spiders[0];
+        currentPlayer.activeTurn= true;
+
         var gameData = new GameData({
             playerData: spiders,
-            gameState: 1
+            gameState: 1,
+            nodes: nodesAndEdges[0],
+            edges: nodesAndEdges[1],
+            winner: "",
+            currentPlayer: currentPlayer,
+            turnCount: 0
         });
 
         var game = new Game({
             gameId: roomId,
             gameData: gameData,
-            canvasData: canvasData
+            canvasData: canvasData,
         });
         await this.dynamoDbClient.send(new PutCommand({
             TableName: process.env.GAME_TABLE_NAME!,
             Item: {
               gameId: game.gameId,
-              data: JSON.stringify(game)
+              gameData: JSON.stringify(game)
             },
           }));
 
