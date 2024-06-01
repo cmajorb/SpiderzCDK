@@ -27,7 +27,8 @@ const EventType = {
     StartSession: "start-session",
     PlayerConnect: "player connect",
     StartGame: "start game",
-    InitGame: "init"
+    InitGame: "init",
+    MakeMove: "make move"
 }
 
 let sessionId = sessionStorage.getItem('sessionId');
@@ -49,7 +50,7 @@ socket.addEventListener('message', (event) => {
 
     switch (message.eventType) {
         case EventType.InitGame:
-            var body = JSON.parse(message.eventBody);
+            var body = message.eventBody;
             var gameData = body.gameData;
             console.log("Init event: ");
             console.log(gameData);
@@ -67,7 +68,7 @@ socket.addEventListener('message', (event) => {
             drawGrid();
             break;
         case EventType.State:
-            var body = JSON.parse(message.eventBody);
+            var body = message.eventBody;
             var gameData = body.gameData;
             console.log("State event: ");
             console.log(message.eventBody);

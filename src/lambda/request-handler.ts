@@ -1,8 +1,9 @@
 import generateLambdaProxyResponse from './utils';
-import { SocketEvent, Client, EventType } from '../models/socket-event';
+import { SocketEvent, Client, EventType, Game } from '../models/socket-event';
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import DynamoDBUtil from '../utilities/dynamo-utility';
+import GameUtils from '../utilities/game-utility';
 
 const SQS = new SQSClient();
 const dbUtil = new DynamoDBUtil();
@@ -115,13 +116,17 @@ async function sendMessage(message, type) {
     console.log(sqsResults);
 }
 
-async function playerConnect(response: SocketEvent, val: SocketEvent) {
+async function playerConnect(response: SocketEvent, val: SocketEvent): Promise<SocketEvent> {
     //verify the user
     console.log("Player connect");
     console.log(val);
-    var gameData = await dbUtil.getGameById(val.roomId);
+
+    const gameObject = await dbUtil.getGameById(val.roomId);
+    var validNodes = GameUtils.getValidMoves(gameObject.gameData.currentPlayer.position,gameObject.gameData.edges);
+    gameObject.gameData.nodes = gameObject.gameData.nodes.concat(validNodes);
+    
     response.eventType = EventType.InitGame;
-    response.eventBody = gameData;
-    response.roomId = gameData.gameId;
+    response.eventBody = gameObject;
+    response.roomId = gameObject.gameId;
     return response;
 }

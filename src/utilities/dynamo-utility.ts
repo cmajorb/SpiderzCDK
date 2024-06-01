@@ -137,23 +137,21 @@ export default class DynamoDBUtil {
       async getGameById(gameId: string): Promise<Game> {
         console.log("Getting game " + gameId);
         const { Items: connections } = await this.dynamoDbClient.send(new QueryCommand({
-          TableName: process.env.GAME_TABLE_NAME!,
-          KeyConditionExpression: 'gameId = :game',
-          ExpressionAttributeValues: {
-            ':game': gameId,
-          },
-          ProjectionExpression: 'gameData',
-        }));
-        return connections!.map((c: any) => c.gameData)[0] as Game;
+            TableName: process.env.GAME_TABLE_NAME!,
+            KeyConditionExpression: 'gameId = :game',
+            ExpressionAttributeValues: {
+                ':game': gameId,
+            },
+            ProjectionExpression: 'gameObject',
+            }));
+  
+        return JSON.parse(connections!.map((c: any) => c.gameObject)[0]) as Game;
       }
 
       async createRoom(clients: DBClient[]) {
         var roomId = crypto.randomBytes(16).toString("hex");
         const waitingRoom = "waitRoom" + clients.length;
         var spiders: Spider[] = [];
-        console.log("MB FLAG");
-        console.log(waitingRoom);
-        console.log(clients);
         for (const client of clients) {
             console.log(client.sessionId);
             const updateCommand = new UpdateCommand({
@@ -214,7 +212,7 @@ export default class DynamoDBUtil {
             TableName: process.env.GAME_TABLE_NAME!,
             Item: {
               gameId: game.gameId,
-              gameData: JSON.stringify(game)
+              gameObject: JSON.stringify(game)
             },
           }));
 

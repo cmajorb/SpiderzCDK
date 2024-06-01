@@ -5,7 +5,7 @@ import { Payload } from "./payload"
 export const CANVAS_SIZES = [[6,5,30],[10,9,30],[12,11,25],[14,13,25]];
 export const NEUTRAL_COLOR = "#c0c0c0";
 export const COLORS = ["#FF0000","#0000FF","#FFFF00","#00FF00"];
-
+export const VALID_COLOR = "#e0bfff";
 
 export class SocketEvent extends Payload {
     constructor(init?:Partial<SocketEvent>) {
@@ -119,5 +119,6 @@ export enum EventType {
     State = "state",
     StartGame = "start game",
     PlayerConnect = "player connect",
-    InitGame = "init"
+    InitGame = "init",
+    MakeMove = "make move"
 }

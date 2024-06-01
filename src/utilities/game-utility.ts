@@ -1,4 +1,4 @@
-import { Edge, Node, NEUTRAL_COLOR } from '../models/socket-event';
+import { Edge, Node, NEUTRAL_COLOR, VALID_COLOR } from '../models/socket-event';
 
 export default class GameUtils {
     static linearRender(sections: number,rings: number) {
@@ -149,4 +149,14 @@ export default class GameUtils {
             return (a[0] < b[0]) ? -1 : 1;
         }
     }
+
+    static getValidMoves(position,edges) {
+        var nodes: Node[] = [];
+        for(var i = 0; i < edges.length; i++) {
+          if(edges[i][1] == position) {
+            nodes.push([edges[i][0],VALID_COLOR]);
+          }
+        }
+        return nodes;
+      }
 }
