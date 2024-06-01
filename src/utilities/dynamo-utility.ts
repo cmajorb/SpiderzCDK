@@ -45,6 +45,16 @@ export default class DynamoDBUtil {
             return resp;
     }
 
+    async deleteGame(gameId: string) {
+        var resp = await this.dynamoDbClient.send(new DeleteCommand({
+                TableName: process.env.GAME_TABLE_NAME!,
+                Key: {
+                    gameId: gameId
+                }
+            }));
+        return resp;
+    }
+
     async getClientById(sessionId):Promise<DBClient|undefined> {
         if(sessionId == null) {
             return;

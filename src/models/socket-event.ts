@@ -121,5 +121,6 @@ export enum EventType {
     PlayerConnect = "player connect",
     InitGame = "init",
     MakeMove = "make move",
-    NoResponse = "no response"
+    NoResponse = "no response",
+    EndGame = "end game",
 }

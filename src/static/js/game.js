@@ -16,8 +16,8 @@ var gameData;
 
 const spider = new Image();
 const spiderSelected = new Image();
-spider.src = "/src/static/images/spider.png";
-spiderSelected.src = "/src/static/images/spider_selected.png";
+spider.src = "images/spider.png";
+spiderSelected.src = "images/spider_selected.png";
 
 const EventType = {
     State: "state",
@@ -29,7 +29,8 @@ const EventType = {
     PlayerConnect: "player connect",
     StartGame: "start game",
     InitGame: "init",
-    MakeMove: "make move"
+    MakeMove: "make move",
+    EndGame: "end game"
 }
 
 let sessionId = sessionStorage.getItem('sessionId');
@@ -78,6 +79,10 @@ socket.addEventListener('message', (event) => {
             winner = gameData.winner;
             drawGrid();
             break;
+        case EventType.EndGame:
+            document.getElementById("modal-body").innerHTML = message.eventBody;
+            $("#notificationModal").modal();
+            break;
         default:
             console.log("Unknown event type: " + message.eventType);
     }
@@ -87,6 +92,10 @@ socket.addEventListener('close', (event) => {
     console.log('WebSocket is closed now.');
     // Handle the close event here
 });
+
+function returnHome() {
+    window.location.href = "/";
+  }
 
 function nodeId(r,t,rings) {
     var id = ((r-1)*(rings+1)+t)+1;

@@ -160,7 +160,16 @@ async function makeMove(response: SocketEvent, val: SocketEvent): Promise<Socket
         //   room.statsData.winners.push(gameObject.gameData.sCurrentPlayer.number)
           gameObject.gameData.winner = gameObject.gameData.currentPlayer.name;
         }
-        gameObject = GameUtils.updateGameState(gameObject);
+        var result = GameUtils.updateGameState(gameObject);
+        if(typeof result === "string") {
+            await dbUtil.deleteGame(gameObject.gameId);
+            response.eventType = EventType.EndGame;
+            response.eventBody = result;
+            response.roomId = gameObject.gameId;
+            return response;
+        } else {
+            gameObject = result;
+        }
   
         await dbUtil.updateGame(gameObject);
 

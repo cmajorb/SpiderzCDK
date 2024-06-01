@@ -235,7 +235,7 @@ export default class GameUtils {
         player.position = 999;
       }
   
-  static updateGameState(gameObject: Game): Game {
+  static updateGameState(gameObject: Game): Game|string {
     var game = gameObject.gameData;
     this.checkTraps(gameObject);
     var activePlayers: number[] = [];
@@ -255,8 +255,8 @@ export default class GameUtils {
       gameObject.gameData.turnCount++;
       if(c > game.playerData.length) {
         gameObject.gameData.gameState = 1;
-        this.endGame(gameObject.gameId,game.winner,1)
-        return gameObject;
+        
+        return this.endGame(game.winner,1);
       }
     }
     while(game.playerData[gameObject.gameData.turnCount % game.playerData.length].isTrapped == true && c <= game.playerData.length);
@@ -271,7 +271,7 @@ export default class GameUtils {
         return gameObject;
   }
 
-  static endGame(gameId, name, reason) {
+  static endGame(name, reason): string {
     var message;
     if(reason == 0) {
       message = name + " has left the game";
@@ -284,13 +284,7 @@ export default class GameUtils {
     //   postStats(gameId);
     }
     console.log(message);
-    // for(var i = 0; i<activeSessions.length; i++){
-    //   if(activeSessions[i].room == gameId) {
-    //     activeSessions[i].state = 1;
-    //   }
-    // }
-    // removeRoom(gameId);
-    // io.to(gameId).emit('end game', message);
-    // console.log("active rooms: " + gameId.length);
+    return message;
+
   }
 }
