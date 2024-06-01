@@ -1,4 +1,4 @@
-import { Edge, Node, NEUTRAL_COLOR, VALID_COLOR } from '../models/socket-event';
+import { Edge, Node, NEUTRAL_COLOR, VALID_COLOR, Game, COLORS } from '../models/socket-event';
 
 export default class GameUtils {
     static linearRender(sections: number,rings: number) {
@@ -159,4 +159,138 @@ export default class GameUtils {
         }
         return nodes;
       }
+
+      static checkAdjacent(fromNode,toNode,edges) {
+        for(var i = 0; i<edges.length; i++) {
+          if(edges[i][0]==toNode && edges[i][1]==fromNode) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      static removeEdge(key,edges){
+        if(key==999) {
+          return edges;
+        }
+        for(var i = edges.length-1; i >= 0; i--) {
+          if(edges[i][0]==key) {
+            edges.splice(i,1);
+          }
+        }
+        return edges;
+      }
+
+    static isTrapped(position,size,edges) {
+        if(this.shortestPath(position,size,edges) == -1) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+    //checks if player is trapped and deactivates them if so
+    static checkTraps(gameObject: Game) {
+        var game = gameObject.gameData;
+        for(var i = 0;i<game.playerData.length;i++) {
+        game.playerData[i].isTrapped = this.isTrapped(game.playerData[i].position,gameObject.canvasData.size*gameObject.canvasData.sections,game.edges);
+        }
+    }
+
+    static remainingTiles(src: number,numVertices: number,edges: Edge[]) {
+        var queue: number[] = [];
+        var visited: Boolean[] = [];
+        var tiles: number[] = [];
+        for (var i = 0; i <= numVertices; i++) {
+              visited.push(false);
+        }
+        visited[src] = true;
+        queue.push(src);
+        while (queue.length != 0) {
+              var u = queue.shift();
+              for (var i = 0; i < edges.length; i++) {
+                if(edges[i][1] == u) {
+                   if(visited[edges[i][0]] == false) {
+                      visited[edges[i][0]] = true;
+                      queue.push(edges[i][0]);
+                      tiles.push(edges[i][0]);
+                  }
+                }
+              }
+          }
+          return tiles;
+      }
+
+    static autoComplete(index,gameObject: Game) {
+        var game = gameObject.gameData;
+        var player = game.playerData[index];
+        var tiles = this.remainingTiles(player.position, gameObject.canvasData.size * gameObject.canvasData.sections, game.edges);
+        for(var i = 0; i < tiles.length; i++) {
+          game.edges = this.removeEdge(tiles[i],game.edges);
+          game.nodes.push([tiles[i], COLORS[player.number]]);
+        }
+        // gameObject.statsData.winners.push(player.number)
+        game.winner = player.name;
+        player.isTrapped = true;
+        player.position = 999;
+      }
+  
+  static updateGameState(gameObject: Game): Game {
+    var game = gameObject.gameData;
+    this.checkTraps(gameObject);
+    var activePlayers: number[] = [];
+    for(var i = 0; i < game.playerData.length; i++) {
+      if(!game.playerData[i].isTrapped) {
+        activePlayers.push(i);
+      }
+    }
+    if(activePlayers.length == 1) {
+        this.autoComplete(activePlayers[0],gameObject);
+    }
+    gameObject.gameData.playerData[game.turnCount % game.playerData.length].activeTurn = false; //new line
+
+    var c = 0;
+    do {
+      c++;
+      gameObject.gameData.turnCount++;
+      if(c > game.playerData.length) {
+        gameObject.gameData.gameState = 1;
+        this.endGame(gameObject.gameId,game.winner,1)
+        return gameObject;
+      }
+    }
+    while(game.playerData[gameObject.gameData.turnCount % game.playerData.length].isTrapped == true && c <= game.playerData.length);
+        // gameObject.statsData.turnCount++;
+        // game.currentPlayer.activeTurn = false;
+        gameObject.gameData.currentPlayer = game.playerData[game.turnCount % game.playerData.length];
+        // game.currentPlayer.activeTurn = true;
+        gameObject.gameData.playerData[game.turnCount % game.playerData.length].activeTurn = true; //new line
+        // if(game.sCurrentPlayer.isComputer) {
+        //     this.computerMove(room, game.sGameTree);
+        // }
+        return gameObject;
+  }
+
+  static endGame(gameId, name, reason) {
+    var message;
+    if(reason == 0) {
+      message = name + " has left the game";
+    }else if(reason == 1) {
+      if(name==-1) {
+        message = "No one wins :(";
+      } else {
+        message = "The winner is " + name;
+      }
+    //   postStats(gameId);
+    }
+    console.log(message);
+    // for(var i = 0; i<activeSessions.length; i++){
+    //   if(activeSessions[i].room == gameId) {
+    //     activeSessions[i].state = 1;
+    //   }
+    // }
+    // removeRoom(gameId);
+    // io.to(gameId).emit('end game', message);
+    // console.log("active rooms: " + gameId.length);
+  }
 }

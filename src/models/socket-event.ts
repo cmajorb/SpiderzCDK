@@ -101,11 +101,11 @@ export class CanvasData {
     constructor(source: Partial<CanvasData>) {
         Object.assign(this, source);
     }
-    public RandomDensity: number;
-    public Sections: number;
-    public Size: number;
-    public GapSize: number;
-    public SpiderSize: number;
+    public randomDensity: number;
+    public sections: number;
+    public size: number;
+    public gapSize: number;
+    public spiderSize: number;
 }
 
 export enum EventType {
@@ -120,5 +120,6 @@ export enum EventType {
     StartGame = "start game",
     PlayerConnect = "player connect",
     InitGame = "init",
-    MakeMove = "make move"
+    MakeMove = "make move",
+    NoResponse = "no response"
 }

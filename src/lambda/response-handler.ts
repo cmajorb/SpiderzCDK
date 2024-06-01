@@ -18,6 +18,7 @@ export const handler: SQSHandler = async (event): Promise<SQSBatchResponse> => {
 
         try {
             if(record.messageAttributes.Type.stringValue == "RoomMessage") {
+                console.log("sending room message");
                 const connections = await dbUtil.getConnections(body.connectionId, body.roomId);
 
                 await Promise.allSettled(connections.map(async connection => {
@@ -28,7 +29,7 @@ export const handler: SQSHandler = async (event): Promise<SQSBatchResponse> => {
             
                     try {
                         await gatewayClient.send(command);
-                        console.log("Success");
+                        console.log("Successfully sent to " + connection.sessionId);
                     } catch (error) {
                         await dbUtil.deactivateConnection(connection.sessionId)
                         console.error(`Error sending message to connection ${connection.connectionId}:`, error);

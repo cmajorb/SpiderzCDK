@@ -11,7 +11,8 @@ var tiles = [];
 var spiderSize;
 var centerColor;
 var playerData;
-var gameState;
+
+var gameData;
 
 const spider = new Image();
 const spiderSelected = new Image();
@@ -51,30 +52,28 @@ socket.addEventListener('message', (event) => {
     switch (message.eventType) {
         case EventType.InitGame:
             var body = message.eventBody;
-            var gameData = body.gameData;
+            gameData = body.gameData;
             console.log("Init event: ");
             console.log(gameData);
 
             tiles = gameData.nodes;
-            gameState = gameData.gameState;
             players = gameData.playerData;
             winner = gameData.winner;
 
-            size = body.canvasData.Size;
-            gapSize = body.canvasData.GapSize;
-            sections = body.canvasData.Sections;
-            randomDensity = body.canvasData.RandomDensity;
-            spiderSize = body.canvasData.SpiderSize;
+            size = body.canvasData.size;
+            gapSize = body.canvasData.gapSize;
+            sections = body.canvasData.sections;
+            randomDensity = body.canvasData.randomDensity;
+            spiderSize = body.canvasData.spiderSize;
             drawGrid();
             break;
         case EventType.State:
             var body = message.eventBody;
-            var gameData = body.gameData;
+            gameData = body.gameData;
             console.log("State event: ");
             console.log(message.eventBody);
             console.log(gameData);
             tiles = gameData.nodes;
-            gameState = gameData.gameState;
             players = gameData.playerData;
             winner = gameData.winner;
             drawGrid();
@@ -89,6 +88,27 @@ socket.addEventListener('close', (event) => {
     // Handle the close event here
 });
 
+function nodeId(r,t,rings) {
+    var id = ((r-1)*(rings+1)+t)+1;
+    if(r == 0) {
+      return 999;
+    }
+    if(r > rings) {
+      return -1;
+    } else {
+      return id;
+    }
+  }
+
+  function checkAdjacent(fromNode,toNode,edges) {
+    for(var i = 0; i<edges.length; i++) {
+      if(edges[i][0]==toNode && edges[i][1]==fromNode) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 function getMousePos(canvas, evt) {
     var rect = canvas.getBoundingClientRect();
     return {
@@ -102,8 +122,12 @@ function clickEvent(e) {
     var cursorY = midY-coor.y;
     var cursorX = midX-coor.x;
     var polar = cartesian2Polar(cursorX,cursorY);
-    console.log(polar);
-    // socket.emit('click',polar,sessionId);
+    var node = nodeId(polar.distance,polar.radians,size);
+
+    if(sessionId == gameData.currentPlayer.id && checkAdjacent(gameData.currentPlayer.position,node,gameData.edges)) {
+        console.log(node);
+        socket.send(JSON.stringify({ "eventType": EventType.MakeMove, "eventBody": node, "roomId": gameId, "sessionId": sessionId }))
+    }
   }
 
 function cartesian2Polar(x,y){

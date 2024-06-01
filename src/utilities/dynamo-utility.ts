@@ -29,6 +29,22 @@ export default class DynamoDBUtil {
             return resp;
     }
 
+    async updateGame(gameObject: Game) {
+        console.log("Updating game " + gameObject.gameId);
+        var resp = await this.dynamoDbClient.send(new UpdateCommand({
+                TableName: process.env.GAME_TABLE_NAME!,
+                Key: {
+                    gameId: gameObject.gameId
+                },
+                UpdateExpression: "set gameObject = :game",
+                ExpressionAttributeValues: {
+                ":game": JSON.stringify(gameObject)
+                },
+                ReturnValues: "ALL_NEW",
+            }));
+            return resp;
+    }
+
     async getClientById(sessionId):Promise<DBClient|undefined> {
         if(sessionId == null) {
             return;
@@ -63,16 +79,31 @@ export default class DynamoDBUtil {
         return clients as DBClient[];
     }
 
-    async changeRooms(client: Client, newRoom, clientName) {
+    async changeRoomAndUpdateName(sessionId, newRoom, clientName) {
         var resp = await this.dynamoDbClient.send(new UpdateCommand({
             TableName: process.env.TABLE_NAME!,
             Key: {
-                sessionId: client.sessionId
+                sessionId: sessionId
             },
             UpdateExpression: "set roomId = :room, clientName = :clientName",
             ExpressionAttributeValues: {
                 ":room": newRoom,
                 ":clientName": clientName,
+            },
+            ReturnValues: "ALL_NEW",
+        }));
+        return resp;
+    }
+
+    async changeRooms(sessionId, newRoom) {
+        var resp = await this.dynamoDbClient.send(new UpdateCommand({
+            TableName: process.env.TABLE_NAME!,
+            Key: {
+                sessionId: sessionId
+            },
+            UpdateExpression: "set roomId = :room",
+            ExpressionAttributeValues: {
+                ":room": newRoom
             },
             ReturnValues: "ALL_NEW",
         }));
@@ -152,12 +183,13 @@ export default class DynamoDBUtil {
         var roomId = crypto.randomBytes(16).toString("hex");
         const waitingRoom = "waitRoom" + clients.length;
         var spiders: Spider[] = [];
-        for (const client of clients) {
-            console.log(client.sessionId);
+
+        for (let i = 0; i < clients.length ; i++) {
+            console.log(clients[i].sessionId);
             const updateCommand = new UpdateCommand({
                 TableName: process.env.TABLE_NAME!,
                 Key: {
-                    sessionId: client.sessionId
+                    sessionId: clients[i].sessionId
                 },
                 UpdateExpression: "set roomId = :roomId",
                 ConditionExpression: "roomId= :waitingRoom",
@@ -166,30 +198,30 @@ export default class DynamoDBUtil {
                     ":waitingRoom": waitingRoom
                 }
             });
-            spiders.push(new Spider(client.sessionId,client.clientName,0,false));
+            spiders.push(new Spider(clients[i].sessionId,clients[i].clientName,i,false));
 
             try {
                 await this.dynamoDbClient.send(updateCommand);
-                console.log(`Added ${client.sessionId} to room ${roomId}`);
+                console.log(`Added ${clients[i].sessionId} to room ${roomId}`);
             } catch (error) {
                 if (error.name === 'ConditionalCheckFailedException') {
-                    console.log(`Session ${client.sessionId} was modified by another process.`);
+                    console.log(`Session ${clients[i].sessionId} was modified by another process.`);
                 } else {
-                    console.error(`Error updating ${client.sessionId}:`, error);
+                    console.error(`Error updating ${clients[i].sessionId}:`, error);
                 }
             }
         }
         const canvasId = clients.length - 1;
         var canvasData = new CanvasData({
-            RandomDensity: 0.25,
-            Sections: CANVAS_SIZES[canvasId][0],
-            Size: CANVAS_SIZES[canvasId][1],
-            GapSize: CANVAS_SIZES[canvasId][2],
-            SpiderSize: CANVAS_SIZES[canvasId][2]/10
+            randomDensity: 0.25,
+            sections: CANVAS_SIZES[canvasId][0],
+            size: CANVAS_SIZES[canvasId][1],
+            gapSize: CANVAS_SIZES[canvasId][2],
+            spiderSize: CANVAS_SIZES[canvasId][2]/10
           });
 
-        var edges = GameUtils.linearRender(canvasData.Sections,canvasData.Size)
-        var nodesAndEdges = GameUtils.randomGenerate(canvasData.Sections,canvasData.Size,canvasData.RandomDensity,edges,spiders.length)
+        var edges = GameUtils.linearRender(canvasData.sections,canvasData.size)
+        var nodesAndEdges = GameUtils.randomGenerate(canvasData.sections,canvasData.size,canvasData.randomDensity,edges,spiders.length)
         var currentPlayer = spiders[0];
         currentPlayer.activeTurn= true;
 
