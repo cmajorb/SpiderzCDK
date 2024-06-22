@@ -6,6 +6,15 @@ export const CANVAS_SIZES = [[6,5,30],[10,9,30],[12,11,25],[14,13,25]];
 export const NEUTRAL_COLOR = "#c0c0c0";
 export const COLORS = ["#FF0000","#0000FF","#FFFF00","#00FF00"];
 export const VALID_COLOR = "#e0bfff";
+export const ADJECTIVES = ['Bored','Friendly','Gorgeous','Feral','Wispy','Burnt','Hollow',
+'Youthful','Nurturing','Quiet','Lame','Curt','Billowing','Mature',
+'Jealous','Delicate','Pouting','Sinister','Angelic','Caramelized',
+'Toxic','Questing','Humiliating','Girly','Manly','Cozy','Putrid','Amazed',
+'Wilted','Witty'];
+export const NOUNS = ['Alligator','Bert','Candlestick','Doghouse','Emer','Foghorn','Gardener',
+'Huckleberry','Igloo','Jack','Karen','Love','Macaroni','Nucklebones','Oculus',
+'Popcorn','Questions','Raccoon','Stampede','Tazer','Uzi','Vat','Water',
+'Xenophobe','Yak','Zero'];
 
 export class SocketEvent extends Payload {
     constructor(init?:Partial<SocketEvent>) {

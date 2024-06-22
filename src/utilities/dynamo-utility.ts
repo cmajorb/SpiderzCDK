@@ -1,7 +1,8 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand, DeleteCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { DBClient, Client, CanvasData, CANVAS_SIZES, Game, GameData, Spider } from '../models/socket-event';
+import { DBClient, Client, CanvasData, CANVAS_SIZES, Game, GameData, Spider, MapNode } from '../models/socket-event';
 import GameUtils from './game-utility';
+import AIUtils from "./ai-utility";
 const crypto = require("crypto");
 
 export default class DynamoDBUtil {
@@ -193,6 +194,8 @@ export default class DynamoDBUtil {
         var roomId = crypto.randomBytes(16).toString("hex");
         const waitingRoom = "waitRoom" + clients.length;
         var spiders: Spider[] = [];
+        var isAI = false;
+    
 
         for (let i = 0; i < clients.length ; i++) {
             console.log(clients[i].sessionId);
@@ -221,6 +224,13 @@ export default class DynamoDBUtil {
                 }
             }
         }
+        if (clients.length == 1) {
+            var ai_id = crypto.randomBytes(16).toString("hex");
+            var aiSpider = new Spider(ai_id, GameUtils.generateName(), 1, true);
+            spiders.push(aiSpider);
+            isAI = true;
+        }
+        
         const canvasId = clients.length - 1;
         var canvasData = new CanvasData({
             randomDensity: 0.25,
@@ -235,14 +245,21 @@ export default class DynamoDBUtil {
         var currentPlayer = spiders[0];
         currentPlayer.activeTurn= true;
 
+        var root;
+        if(isAI) {
+            root = new MapNode(edges,1,0);
+            // root = AIUtils.generateTree(root, 0, 0, canvasData.size*canvasData.sections);
+        } 
+
         var gameData = new GameData({
             playerData: spiders,
-            gameState: 1,
+            gameState: 0,
             nodes: nodesAndEdges[0],
             edges: nodesAndEdges[1],
             winner: "",
             currentPlayer: currentPlayer,
-            turnCount: 0
+            turnCount: 0,
+            gameTree: root
         });
 
         var game = new Game({

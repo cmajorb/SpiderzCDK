@@ -152,25 +152,15 @@ async function makeMove(response: SocketEvent, val: SocketEvent): Promise<Socket
     const currentPlayerIndex = gameObject.gameData.turnCount % gameObject.gameData.playerData.length;
 
     if(val.sessionId == gameObject.gameData.playerData[currentPlayerIndex].id && GameUtils.checkAdjacent(gameObject.gameData.playerData[currentPlayerIndex].position, selectedNode, gameObject.gameData.edges)) {
-        gameObject.gameData.playerData[currentPlayerIndex].position = selectedNode;
+        gameObject = GameUtils.makeMove(gameObject, selectedNode);
 
-        gameObject.gameData.edges = GameUtils.removeEdge(selectedNode,gameObject.gameData.edges);
-        gameObject.gameData.nodes.push([selectedNode,COLORS[currentPlayerIndex]]);
-        if(selectedNode == 999) {
-        //   room.statsData.winners.push(gameObject.gameData.sCurrentPlayer.number)
-          gameObject.gameData.winner = gameObject.gameData.currentPlayer.name;
-        }
-        var result = GameUtils.updateGameState(gameObject);
-        if(typeof result === "string") {
+        if(gameObject.gameData.gameState == 1) {
             await dbUtil.deleteGame(gameObject.gameId);
             response.eventType = EventType.EndGame;
-            response.eventBody = result;
+            response.eventBody = GameUtils.endGameMessage(gameObject.gameData.winner,1);
             response.roomId = gameObject.gameId;
             return response;
-        } else {
-            gameObject = result;
         }
-  
         await dbUtil.updateGame(gameObject);
 
         var validNodes = GameUtils.getValidMoves(gameObject.gameData.currentPlayer.position,gameObject.gameData.edges);

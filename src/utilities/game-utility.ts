@@ -1,6 +1,14 @@
-import { Edge, Node, NEUTRAL_COLOR, VALID_COLOR, Game, COLORS } from '../models/socket-event';
+import { Edge, Node, NEUTRAL_COLOR, VALID_COLOR, Game, COLORS, MapNode, ADJECTIVES, NOUNS } from '../models/socket-event';
+import AIUtils from './ai-utility';
 
 export default class GameUtils {
+    static generateName() {
+        var ran1 = Math.floor(Math.random() * ADJECTIVES.length);
+        var ran2 = Math.floor(Math.random() * NOUNS.length);
+      
+        return ADJECTIVES[ran1] + " " + NOUNS[ran2];
+      }
+
     static linearRender(sections: number,rings: number) {
         var edges: Edge[] = [];
         var currentIndex;
@@ -169,8 +177,8 @@ export default class GameUtils {
         return false;
       }
 
-      static removeEdge(key,edges){
-        if(key==999) {
+      static removeEdge(key: number, edges: Edge[]): Edge[] {
+        if(key == 999) {
           return edges;
         }
         for(var i = edges.length-1; i >= 0; i--) {
@@ -235,7 +243,7 @@ export default class GameUtils {
         player.position = 999;
       }
   
-  static updateGameState(gameObject: Game): Game|string {
+  static updateGameState(gameObject: Game): Game {
     var game = gameObject.gameData;
     this.checkTraps(gameObject);
     var activePlayers: number[] = [];
@@ -255,23 +263,20 @@ export default class GameUtils {
       gameObject.gameData.turnCount++;
       if(c > game.playerData.length) {
         gameObject.gameData.gameState = 1;
-        
-        return this.endGame(game.winner,1);
+        return gameObject;
       }
     }
     while(game.playerData[gameObject.gameData.turnCount % game.playerData.length].isTrapped == true && c <= game.playerData.length);
-        // gameObject.statsData.turnCount++;
-        // game.currentPlayer.activeTurn = false;
-        gameObject.gameData.currentPlayer = game.playerData[game.turnCount % game.playerData.length];
-        // game.currentPlayer.activeTurn = true;
-        gameObject.gameData.playerData[game.turnCount % game.playerData.length].activeTurn = true; //new line
-        // if(game.sCurrentPlayer.isComputer) {
-        //     this.computerMove(room, game.sGameTree);
-        // }
-        return gameObject;
+    // gameObject.statsData.turnCount++;
+    gameObject.gameData.currentPlayer = game.playerData[game.turnCount % game.playerData.length];
+    gameObject.gameData.playerData[game.turnCount % game.playerData.length].activeTurn = true; //new line
+    if(gameObject.gameData.playerData[game.turnCount % game.playerData.length].isComputer) {
+        AIUtils.computerMove(gameObject, gameObject.gameData.gameTree!);
+    }
+    return gameObject;
   }
 
-  static endGame(name, reason): string {
+  static endGameMessage(name, reason): string {
     var message;
     if(reason == 0) {
       message = name + " has left the game";
@@ -287,4 +292,31 @@ export default class GameUtils {
     return message;
 
   }
+
+  static makeMove(gameObject: Game, selectedNode: number): Game {
+    const currentPlayerIndex = gameObject.gameData.turnCount % gameObject.gameData.playerData.length;
+    if(gameObject.gameData.gameTree != null) {
+        for(var i = 0; i < gameObject.gameData.gameTree.children.length; i++) {
+          if(gameObject.gameData.gameTree.children[i].position == selectedNode) {
+            gameObject.gameData.gameTree = gameObject.gameData.gameTree.children[i];
+          }
+        }
+      }
+
+    gameObject.gameData.playerData[currentPlayerIndex].position = selectedNode;
+
+    gameObject.gameData.edges = GameUtils.removeEdge(selectedNode,gameObject.gameData.edges);
+    gameObject.gameData.nodes.push([selectedNode,COLORS[currentPlayerIndex]]);
+    if(selectedNode == 999) {
+    //   room.statsData.winners.push(gameObject.gameData.sCurrentPlayer.number)
+      gameObject.gameData.winner = gameObject.gameData.currentPlayer.name;
+    }
+    gameObject = GameUtils.updateGameState(gameObject);
+
+
+   
+    return gameObject;
+  }
+
+  
 }
