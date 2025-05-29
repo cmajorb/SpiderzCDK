@@ -16,16 +16,16 @@ export class FrontEndStack extends Stack {
     super(scope, id, props);
 
     const domainName = 'cmajorb.com';
-    const siteDomain = 'www.' + domainName;
+    const subdomain = 'spiderz';
+    const siteDomain = `${subdomain}.${domainName}`;
 
 
     const zone = HostedZone.fromLookup(this, 'Zone', { domainName: domainName });
     console.log(zone);
     
     const certificate = new Certificate( this, "certificate", {
-      domainName: domainName,
-      subjectAlternativeNames: ['*.' + domainName],
-      validation: CertificateValidation.fromDns( zone )
+      domainName: siteDomain,
+      validation: CertificateValidation.fromDns(zone)
     });
 
 
@@ -50,20 +50,14 @@ export class FrontEndStack extends Stack {
         origin: new S3Origin(sourceBucket, {originAccessIdentity}),
       },
       certificate: certificate,
-      domainNames: [siteDomain, domainName],
+      domainNames: [siteDomain],
       minimumProtocolVersion: SecurityPolicyProtocol.TLS_V1_2_2021,
     })
 
-    new ARecord(this, 'WWWSiteAliasRecord', {
+    new ARecord(this, 'SpiderzSubdomainAliasRecord', {
       zone,
-      recordName: siteDomain,
-      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution))
-    });
-
-    new ARecord(this, 'SiteAliasRecord', {
-      zone,
-      recordName: domainName,
-      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution))
+      recordName: subdomain,
+      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
     });
 
   }

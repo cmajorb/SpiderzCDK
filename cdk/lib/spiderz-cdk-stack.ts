@@ -69,7 +69,7 @@ export class SpiderzCdkStack extends Stack {
       entry: "../src/lambda/request-handler.ts",
       handler: "handleMessage",
       runtime: Runtime.NODEJS_20_X,
-      timeout: Duration.seconds(5),
+      timeout: Duration.seconds(300),
       memorySize: 1024,
       functionName: "RequestHandler",
       description: "Handles requests sent via websocket and stores (connectionId, chatId) tuple in DynamoDB.",
